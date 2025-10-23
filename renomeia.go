@@ -73,10 +73,6 @@ func main() {
 			continue
 		}
 
-		if hasUpper {
-			fmt.Printf("📥 Convertido para lowercase: %s → %s\n", oldName, newName)
-		} else {
-			fmt.Printf("✅ %s → %s\n", oldName, newName)
-		}
+		fmt.Printf("✅ %s → %s\n", oldName, newName)
 	}
 }
