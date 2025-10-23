@@ -11,7 +11,7 @@ go run renomeia.go
 
 ## ⚙ Execution - 🇺🇸
 
-1. Place the `rename.go` file in the folder where the files you want to rename are located.
+1. Place the `renomeia.go` file in the folder where the files you want to rename are located.
 2. Open a terminal inside the folder and run:
 ```go
 go run rename.go
