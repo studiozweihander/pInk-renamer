@@ -14,9 +14,9 @@ import (
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Println("📚 pInk renamer")
+	fmt.Println("📚 padronizador de nomes de quadrinhos")
 	fmt.Println("---------------------------------------")
-	fmt.Print("Escolha o formato de numeração (2 = dezena, 3 = centena): ")
+	fmt.Print("escolha o formato de numeração (2 = dezena, 3 = centena): ")
 
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
@@ -26,20 +26,19 @@ func main() {
 		numDigits = 3
 	}
 
-	fmt.Printf("→ Usando formatação com %d dígitos.\n\n", numDigits)
+	fmt.Printf("→ usando formatação com %d dígitos.\n\n", numDigits)
 
 	currentDir, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("❌ Erro ao obter diretório atual: %v\n", err)
+		log.Fatalf("❌ erro ao obter diretório atual: %v\n", err)
 	}
 
 	entries, err := os.ReadDir(currentDir)
 	if err != nil {
-		log.Fatalf("❌ Erro ao listar arquivos: %v\n", err)
+		log.Fatalf("❌ erro ao listar arquivos: %v\n", err)
 	}
 
 	trailingRe := regexp.MustCompile(`(?i)^(.*?)[ _-]?0*(\d+)$`)
-
 	skippedSelf := false
 
 	for _, entry := range entries {
@@ -49,9 +48,9 @@ func main() {
 
 		oldName := entry.Name()
 
-		if oldName == "renomeia.go" {
+		if strings.EqualFold(oldName, "renomeia.go") {
 			if !skippedSelf {
-				fmt.Printf("⚠️  Ignorando o script %s (por segurança).\n", oldName)
+				fmt.Printf("⚠️  ignorando o script %s (por segurança).\n", oldName)
 				skippedSelf = true
 			}
 			continue
@@ -60,8 +59,7 @@ func main() {
 		ext := filepath.Ext(oldName)
 		baseWithPossibleNum := strings.TrimSuffix(oldName, ext)
 
-		var base string
-		var numStr string
+		var base, numStr string
 		var hasNum bool
 
 		if matches := trailingRe.FindStringSubmatch(baseWithPossibleNum); len(matches) == 3 {
@@ -78,38 +76,38 @@ func main() {
 
 		numInt, convErr := strconv.Atoi(numStr)
 		if convErr != nil {
-			fmt.Printf("❌ Não foi possível ler número em '%s' (interpretado: '%s'), pulando.\n", oldName, numStr)
+			fmt.Printf("❌ não foi possível ler número em '%s' (interpretado: '%s'), pulando.\n", oldName, numStr)
 			continue
 		}
 
 		formattedNum := fmt.Sprintf("%0*d", numDigits, numInt)
-
 		cleanBase := strings.TrimRight(base, " _-")
 		if cleanBase == "" {
 			cleanBase = "item"
 		}
 
 		newName := fmt.Sprintf("%s-%s%s", cleanBase, formattedNum, ext)
+		newName = strings.ToLower(newName)
 
-		if oldName == newName {
-			fmt.Printf("🔹 Mantido: %s\n", oldName)
+		if strings.EqualFold(oldName, newName) {
+			fmt.Printf("🔹 mantido: %s\n", oldName)
 			continue
 		}
 
 		if _, err := os.Stat(newName); err == nil {
-			fmt.Printf("⚠️  Já existe: %s → %s (pulando para evitar colisão)\n", oldName, newName)
+			fmt.Printf("⚠️  já existe: %s → %s (pulando para evitar colisão)\n", oldName, newName)
 			continue
 		}
 
 		if err := os.Rename(oldName, newName); err != nil {
-			fmt.Printf("❌ Falha ao renomear %s → %s: %v\n", oldName, newName, err)
+			fmt.Printf("❌ falha ao renomear %s → %s: %v\n", oldName, newName, err)
 			continue
 		}
 
 		fmt.Printf("✅ %s → %s\n", oldName, newName)
 	}
 
-	fmt.Println("\n✨ Renomeação concluída.")
+	fmt.Println("\n✨ renomeação concluída.")
 }
 
 func extractLastNumber(s string) (base string, num string, found bool) {
