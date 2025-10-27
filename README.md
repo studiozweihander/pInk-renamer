@@ -14,6 +14,6 @@ go run renomeia.go
 1. Place the `renomeia.go` file in the folder where the files you want to rename are located.
 2. Open a terminal inside the folder and run:
 ```go
-go run rename.go
+go run renomeia.go
 ```
 3. Select between 2 for two-digit numbering (tens) or 3 for three-digit numbering (hundreds).
