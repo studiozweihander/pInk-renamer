@@ -5,13 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 func main() {
 	fmt.Println("📚 pInk renamer")
-	fmt.Println("---------------------------------------")
 
 	dir, err := os.Getwd()
 	if err != nil {
@@ -19,7 +21,7 @@ func main() {
 	}
 
 	var formato int
-	fmt.Print("Escolha o formato de numeração (2 = dezena, 3 = centena): ")
+	fmt.Println("Escolha o formato de numeração (2 = dezena, 3 = centena): ")
 	fmt.Scan(&formato)
 
 	if formato != 2 && formato != 3 {
@@ -35,6 +37,13 @@ func main() {
 	}
 
 	reNumero := regexp.MustCompile(`(\d+)(?:\D*$)?`)
+	start := time.Now()
+
+	cpuCount := runtime.NumCPU()
+	sem := make(chan struct{}, cpuCount)
+	var wg sync.WaitGroup
+	var renamed int64
+	var mu sync.Mutex
 
 	for _, f := range files {
 		if f.IsDir() {
@@ -43,36 +52,50 @@ func main() {
 
 		oldName := f.Name()
 		ext := filepath.Ext(oldName)
-		base := strings.TrimSuffix(oldName, ext)
-
 		if ext != ".cbr" && ext != ".cbz" {
 			continue
 		}
 
-		numeroMatch := reNumero.FindStringSubmatch(base)
-		if len(numeroMatch) == 0 {
-			continue
-		}
+		wg.Add(1)
+		sem <- struct{}{}
 
-		numero, _ := strconv.Atoi(numeroMatch[1])
-		numeroFmt := fmt.Sprintf("%0*d", formato, numero)
+		go func(oldName string) {
+			defer wg.Done()
+			defer func() { <-sem }()
 
-		newBase := strings.ToLower(fmt.Sprintf("hellblazer-%s", numeroFmt))
-		newName := newBase + ext
+			base := strings.TrimSuffix(oldName, filepath.Ext(oldName))
+			numeroMatch := reNumero.FindStringSubmatch(base)
+			if len(numeroMatch) == 0 {
+				return
+			}
 
-		hasUpper := oldName != strings.ToLower(oldName)
+			numero, _ := strconv.Atoi(numeroMatch[1])
+			numeroFmt := fmt.Sprintf("%0*d", formato, numero)
 
-		if !hasUpper && oldName == newName {
-			fmt.Printf("🔷 Mantido: %s\n", oldName)
-			continue
-		}
+			base = strings.ReplaceAll(base, " ", "-")
+			base = reNumero.ReplaceAllString(base, numeroFmt)
+			newName := strings.ToLower(base) + filepath.Ext(oldName)
 
-		err := os.Rename(oldName, newName)
-		if err != nil {
-			fmt.Printf("❌ erro ao renomear %s: %v\n", oldName, err)
-			continue
-		}
+			hasUpper := oldName != strings.ToLower(oldName)
+			if !hasUpper && oldName == newName {
+				fmt.Printf("🔷 Mantido: %s\n", oldName)
+				return
+			}
 
-		fmt.Printf("✅ %s → %s\n", oldName, newName)
+			if err := os.Rename(oldName, newName); err != nil {
+				fmt.Printf("❌ Erro ao renomear %s: %v\n", oldName, err)
+				return
+			}
+
+			mu.Lock()
+			renamed++
+			mu.Unlock()
+
+			fmt.Printf("✅ %s → %s\n", oldName, newName)
+		}(oldName)
 	}
+
+	wg.Wait()
+	elapsed := time.Since(start)
+	fmt.Printf("\n📂 Foram renomeados %d arquivos em %.2f segundos usando %d núcleos.\n", renamed, elapsed.Seconds(), cpuCount)
 }
