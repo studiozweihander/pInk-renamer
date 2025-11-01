@@ -12,6 +12,18 @@ import (
 	"time"
 )
 
+func logInfo(msg string, args ...interface{}) {
+	fmt.Printf("\033[34m[INFO]\033[0m "+msg+"\n", args...)
+}
+
+func logSuccess(msg string, args ...interface{}) {
+	fmt.Printf("\033[32m[SUCCESS]\033[0m "+msg+"\n", args...)
+}
+
+func logError(msg string, args ...interface{}) {
+	fmt.Printf("\033[31m[ERROR]\033[0m "+msg+"\n", args...)
+}
+
 type Renomeacao struct {
 	Antigo string
 	Novo   string
@@ -19,11 +31,34 @@ type Renomeacao struct {
 
 func main() {
 	for {
-		fmt.Println("📚 pInk renamer")
+		fmt.Println(`
+           █████            █████                                                                                   
+          ░░███            ░░███                                                                                    
+ ████████  ░███  ████████   ░███ █████    ████████   ██████  ████████    ██████   █████████████    ██████  ████████ 
+░░███░░███ ░███ ░░███░░███  ░███░░███    ░░███░░███ ███░░███░░███░░███  ░░░░░███ ░░███░░███░░███  ███░░███░░███░░███
+ ░███ ░███ ░███  ░███ ░███  ░██████░      ░███ ░░░ ░███████  ░███ ░███   ███████  ░███ ░███ ░███ ░███████  ░███ ░░░ 
+ ░███ ░███ ░███  ░███ ░███  ░███░░███     ░███     ░███░░░   ░███ ░███  ███░░███  ░███ ░███ ░███ ░███░░░   ░███     
+ ░███████  █████ ████ █████ ████ █████    █████    ░░██████  ████ █████░░████████ █████░███ █████░░██████  █████    
+ ░███░░░  ░░░░░ ░░░░ ░░░░░ ░░░░ ░░░░░    ░░░░░      ░░░░░░  ░░░░ ░░░░░  ░░░░░░░░ ░░░░░ ░░░ ░░░░░  ░░░░░░  ░░░░░     
+ ░███                                                                                                               
+ █████                                                                                                              
+░░░░░                                                                                                               
+	`)
 
-		dir, err := os.Getwd()
-		if err != nil {
-			panic(err)
+		var dir string
+		if len(os.Args) > 1 {
+			dir = os.Args[1]
+			if _, err := os.Stat(dir); os.IsNotExist(err) {
+				logError(fmt.Sprintf("A pasta especificada não existe: %s", dir))
+				return
+			}
+		} else {
+			cwd, err := os.Getwd()
+			if err != nil {
+				logError(fmt.Sprintf("Falha ao obter diretório atual: %v", err))
+				return
+			}
+			dir = cwd
 		}
 
 		var formato int
@@ -31,13 +66,14 @@ func main() {
 		fmt.Scan(&formato)
 
 		if formato != 2 && formato != 3 {
-			fmt.Println("❌ Formato inválido. Use 2 ou 3.")
+			logError("Formato inválido. Use 2 ou 3.")
 			continue
 		}
 
 		files, err := os.ReadDir(dir)
 		if err != nil {
-			panic(err)
+			logError(fmt.Sprintf("Falha ao ler diretório: %v", err))
+			return
 		}
 
 		reNumero := regexp.MustCompile(`(\d+)(?:\D*$)?`)
@@ -69,7 +105,6 @@ func main() {
 			base = strings.ReplaceAll(base, "_", "-")
 
 			base = reNumero.ReplaceAllString(base, numeroFmt)
-
 			base = reMultiHifen.ReplaceAllString(base, "-")
 
 			if !strings.Contains(base, "-"+numeroFmt) {
@@ -80,18 +115,22 @@ func main() {
 			hasUpper := oldName != strings.ToLower(oldName)
 
 			if !hasUpper && oldName == newName {
-				fmt.Printf("🔷 Mantido: %s\n", oldName)
-				return
+				logInfo(fmt.Sprintf("Mantido: %s", oldName))
+				continue
 			}
 
 			if oldName != newName {
-				renomeacoes = append(renomeacoes, Renomeacao{Antigo: oldName, Novo: newName})
-				fmt.Printf("✅ %s → %s\n", oldName, newName)
+				renomeacoes = append(renomeacoes, Renomeacao{
+					Antigo: filepath.Join(dir, oldName),
+					Novo:   filepath.Join(dir, newName),
+				})
+				logSuccess(fmt.Sprintf("%s → %s", oldName, newName))
 			}
 		}
 
 		if len(renomeacoes) == 0 {
-			fmt.Println("\n❌ Nenhum arquivo elegível para renomeação encontrado.")
+			fmt.Println("")
+			logError("Nenhum arquivo elegível para renomeação encontrado.")
 			return
 		}
 
@@ -100,7 +139,7 @@ func main() {
 		fmt.Scan(&confirma)
 
 		if strings.ToLower(confirma) != "s" {
-			fmt.Println("\n🔁 Operação cancelada. Reiniciando...\n")
+			logInfo("Operação cancelada. Reiniciando...\n")
 			continue
 		}
 
@@ -120,7 +159,7 @@ func main() {
 				defer func() { <-sem }()
 
 				if err := os.Rename(oldName, newName); err != nil {
-					fmt.Printf("❌ erro ao renomear %s: %v\n", oldName, err)
+					logError(fmt.Sprintf("Erro ao renomear %s: %v", oldName, err))
 					return
 				}
 
@@ -132,7 +171,7 @@ func main() {
 
 		wg.Wait()
 		elapsed := time.Since(start)
-		fmt.Printf("\n📂 Foram renomeados %d arquivos em %.2f.\n", renamed, elapsed.Seconds(), cpuCount)
+		logSuccess(fmt.Sprintf("Foram renomeados %d arquivos em %.2f segundos.", renamed, elapsed.Seconds()))
 		break
 	}
 }
