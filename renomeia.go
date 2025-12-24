@@ -87,9 +87,6 @@ func main() {
 
 			oldName := f.Name()
 			ext := filepath.Ext(oldName)
-			if ext != ".cbr" && ext != ".cbz" {
-				continue
-			}
 
 			base := strings.TrimSuffix(oldName, ext)
 			numeroMatch := reNumero.FindStringSubmatch(base)
@@ -175,3 +172,4 @@ func main() {
 		break
 	}
 }
+
